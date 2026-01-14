@@ -5,9 +5,15 @@ from pydrive2.drive import GoogleDrive
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
-FOLDER_ID = "ISI_ID_FOLDER_DRIVE_KAMU_DI_SINI"
+# ==============================
+# KONFIGURASI
+# ==============================
+FOLDER_ID = "1nKSO2v_YWZn1EE1HMvEP_rM9EqrHkQV2"  # Folder Drive kamu
+MAX_SIZE_MB = 500  # batas aman size video
 
-# ===== LOGIN =====
+# ==============================
+# LOGIN GOOGLE
+# ==============================
 gauth = GoogleAuth()
 
 if os.path.exists("token.pickle"):
@@ -24,41 +30,76 @@ gauth.SaveCredentialsFile("token.pickle")
 
 drive = GoogleDrive(gauth)
 
-# ===== AMBIL VIDEO =====
+# ==============================
+# AMBIL 1 VIDEO TERLAMA (FIFO)
+# ==============================
+print("🔍 Mengecek folder Drive...")
+
 file_list = drive.ListFile({
-    'q': f"'{FOLDER_ID}' in parents and trashed=false"
+    'q': f"'{FOLDER_ID}' in parents and trashed=false",
+    'orderBy': 'createdDate asc'
 }).GetList()
 
 if not file_list:
-    print("Tidak ada video")
-    exit()
+    print("❌ Tidak ada video di folder. Skip waktu ini.")
+    exit(0)
 
-video = file_list[0]
-print("Download:", video['title'])
-video.GetContentFile("video.mp4")
+video = file_list[0]  # VIDEO TERLAMA
 
-# ===== UPLOAD KE YOUTUBE =====
+print("📥 Mengambil:", video['title'])
+
+# ==============================
+# DOWNLOAD VIDEO
+# ==============================
+LOCAL_FILE = "video.mp4"
+video.GetContentFile(LOCAL_FILE)
+
+# ==============================
+# CEK UKURAN FILE
+# ==============================
+size_mb = os.path.getsize(LOCAL_FILE) / (1024 * 1024)
+
+if size_mb > MAX_SIZE_MB:
+    print("❌ File terlalu besar:", round(size_mb, 2), "MB")
+    os.remove(LOCAL_FILE)
+    exit(0)
+
+# ==============================
+# UPLOAD KE YOUTUBE
+# ==============================
+print("🚀 Upload ke YouTube...")
+
 youtube = build("youtube", "v3", credentials=gauth.credentials)
 
 request = youtube.videos().insert(
     part="snippet,status",
     body={
         "snippet": {
-            "title": video['title'],
+            "title": video['title'],  # JUDUL = NAMA FILE
             "description": "#shorts",
-            "tags": ["shorts"],
             "categoryId": "22"
         },
         "status": {
-            "privacyStatus": "public"
+            "privacyStatus": "public"  # LANGSUNG PUBLIC
         }
     },
-    media_body=MediaFileUpload("video.mp4", resumable=True)
+    media_body=MediaFileUpload(LOCAL_FILE, resumable=True)
 )
 
 response = request.execute()
-print("Uploaded:", response["id"])
 
-# ===== HAPUS DARI DRIVE =====
+print("✅ Upload sukses! Video ID:", response.get("id"))
+
+# ==============================
+# HAPUS VIDEO DARI DRIVE (ANTRIAN LANJUT)
+# ==============================
 video.Delete()
-print("Selesai.")
+print("🗑️ Video dihapus dari Drive (antrian lanjut).")
+
+# ==============================
+# BERSIHKAN FILE LOKAL
+# ==============================
+if os.path.exists(LOCAL_FILE):
+    os.remove(LOCAL_FILE)
+
+print("🎉 Selesai 1 video.")
