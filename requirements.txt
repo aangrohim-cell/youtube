@@ -1,0 +1,3 @@
+google-api-python-client
+pydrive2
+oauth2client
