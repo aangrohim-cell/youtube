@@ -1,12 +1,17 @@
-name: Auto Upload Shorts
+name: Auto Upload YouTube Shorts
 
 on:
   schedule:
-    - cron: '0 3 * * *'
+    - cron: '0 17 * * *'
+    - cron: '0 21 * * *'
+    - cron: '0 1 * * *'
+    - cron: '0 5 * * *'
+    - cron: '0 9 * * *'
+    - cron: '0 13 * * *'
   workflow_dispatch:
 
 jobs:
-  run:
+  upload:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
